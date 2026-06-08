@@ -1,0 +1,1108 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>日計表 - 整骨鍼灸院たいよう</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --orange:#F5A84E;--orange-dark:#e0963c;--orange-light:#FEF3E7;
+  --green:#1D9E75;--red:#D85A30;--blue:#185FA5;
+  --text:#3D3D3D;--text-sub:#888;--border:#E8D8C8;--border-light:#F0E4D4;
+  --bg:#FFF8F0;--bg-card:#fff;--bg-secondary:#FEF3E7;
+  --radius:10px;--radius-sm:6px;--shadow:0 2px 8px rgba(0,0,0,0.08);
+}
+body{font-family:'Hiragino Kaku Gothic ProN','Hiragino Sans','YuGothic',sans-serif;color:var(--text);background:var(--bg);min-height:100vh}
+button{cursor:pointer;font-family:inherit}
+input,select,textarea{font-family:inherit}
+
+/* パスコード画面 */
+.lock-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:20px;background:var(--bg)}
+.lock-logo{font-size:48px;margin-bottom:16px}
+.lock-title{font-size:20px;font-weight:700;color:var(--orange);margin-bottom:6px}
+.lock-sub{font-size:13px;color:var(--text-sub);margin-bottom:32px}
+.lock-dots{display:flex;gap:12px;margin-bottom:24px}
+.lock-dot{width:14px;height:14px;border-radius:50%;background:var(--border);transition:background .15s}
+.lock-dot.filled{background:var(--orange)}
+.lock-keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;width:220px}
+.key-btn{padding:16px;font-size:20px;font-weight:600;border:1.5px solid var(--border);border-radius:var(--radius);background:#fff;color:var(--text);transition:all .1s;box-shadow:var(--shadow)}
+.key-btn:active{background:var(--orange);color:#fff;border-color:var(--orange);transform:scale(0.95)}
+.key-del{font-size:16px;color:var(--text-sub)}
+.lock-error{font-size:13px;color:var(--red);margin-top:14px;min-height:20px;font-weight:500}
+.lock-sync{font-size:12px;color:var(--text-sub);margin-top:10px;display:flex;align-items:center;gap:5px}
+
+/* メインアプリ */
+.app{display:none}
+.app.show{display:block}
+.app-header{background:var(--orange);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(245,168,78,0.3)}
+.app-header h1{font-size:17px;font-weight:700;color:#fff;letter-spacing:0.03em}
+.header-right{display:flex;align-items:center;gap:10px}
+.today-date{font-size:11px;color:rgba(255,255,255,0.9)}
+.sync-indicator{font-size:11px;color:rgba(255,255,255,0.85);display:flex;align-items:center;gap:4px}
+.sync-indicator.syncing{animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}
+.logout-btn{background:rgba(255,255,255,0.2);border:none;color:#fff;font-size:11px;padding:4px 8px;border-radius:20px}
+
+.tabs{display:flex;background:#fff;border-bottom:2px solid var(--border-light);overflow-x:auto;-webkit-overflow-scrolling:touch}
+.tabs::-webkit-scrollbar{display:none}
+.tab{padding:10px 14px;font-size:12px;font-weight:500;white-space:nowrap;border:none;background:transparent;color:var(--text-sub);border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .15s}
+.tab.active{color:var(--orange);border-bottom-color:var(--orange);font-weight:600}
+.panel{display:none;padding:14px 12px}.panel.active{display:block}
+
+.date-bar{display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.date-bar input[type=date]{font-size:13px;padding:6px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:#fff;color:var(--text);flex:1;min-width:130px}
+.btn-sm{font-size:12px;padding:5px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:#fff;color:var(--text-sub)}
+.btn-today{background:var(--orange-light);color:var(--orange);border-color:var(--orange)}
+.btn-nav{padding:5px 9px}
+
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+@media(max-width:480px){.grid2{grid-template-columns:1fr}}
+.col-box{background:#fff;border-radius:var(--radius);border:1px solid var(--border);overflow:hidden;box-shadow:var(--shadow)}
+.col-head{padding:8px 10px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px}
+.col-head.in{background:#E6F7F0;color:#0B5E41}
+.col-head.out{background:#FDEEE9;color:#8B2A10}
+.col-header-row{display:grid;grid-template-columns:1fr 72px 62px 22px;gap:2px;padding:3px 8px 3px 12px;background:var(--bg-secondary);border-bottom:1px solid var(--border-light)}
+.col-header-row span{font-size:10px;color:var(--text-sub)}
+.kagaku-block{border-bottom:1px solid var(--border-light)}
+.kagaku-block:last-child{border-bottom:none}
+.kagaku-label-row{display:flex;align-items:center;justify-content:space-between;padding:5px 10px;background:var(--bg-secondary)}
+.kagaku-label{font-size:12px;font-weight:600;color:var(--text-sub)}
+.kagaku-add-btn{background:none;border:1px solid var(--border);border-radius:50%;width:20px;height:20px;font-size:14px;line-height:1;display:flex;align-items:center;justify-content:center;color:var(--text-sub);flex-shrink:0;transition:all .15s}
+.kagaku-add-btn:hover,.kagaku-add-btn:active{background:var(--orange);color:#fff;border-color:var(--orange)}
+.tekiyo-row{display:grid;grid-template-columns:1fr 72px 62px 22px;gap:2px;align-items:center;padding:3px 8px 3px 14px}
+.tekiyo-row input[type=text]{font-size:12px;padding:3px 4px;border:1px solid transparent;border-radius:4px;background:transparent;color:var(--text);width:100%;min-width:0}
+.tekiyo-row input[type=text]:focus{border-color:var(--orange);background:#fff;outline:none}
+.tekiyo-row input[type=number]{font-size:12px;padding:3px 4px;text-align:right;border:1px solid transparent;border-radius:4px;background:transparent;color:var(--text);width:100%;min-width:0}
+.tekiyo-row input[type=number]:focus{border-color:var(--orange);background:#fff;outline:none}
+.tax-select{font-size:10px;padding:2px 3px;border:1px solid var(--border);border-radius:4px;background:#fff;color:var(--text-sub);width:100%;min-width:0}
+.del-btn{background:transparent;border:none;color:var(--text-sub);font-size:13px;padding:0;line-height:1;display:flex;align-items:center;justify-content:center}
+.del-btn:hover{color:var(--red)}
+.del-btn.hidden{visibility:hidden;pointer-events:none}
+.add-kagaku-btn{width:100%;font-size:12px;color:var(--text-sub);border:none;border-top:1px dashed var(--border);background:transparent;padding:7px;text-align:center}
+.add-kagaku-btn:hover{background:var(--bg-secondary)}
+
+.summary-box{background:#fff;border-radius:var(--radius);border:1px solid var(--border);padding:12px 14px;margin-bottom:12px;box-shadow:var(--shadow)}
+.prev-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-size:13px;padding-bottom:8px;border-bottom:1px solid var(--border-light)}
+.prev-row input{font-size:13px;text-align:right;padding:4px 6px;width:130px;border:1px solid var(--border);border-radius:var(--radius-sm);background:#fff}
+.prev-row input:focus{border-color:var(--orange);outline:none}
+.sum-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px}
+.sum-row{display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:13px}
+.sum-row.total{font-weight:600;font-size:14px;border-top:1px solid var(--border-light);margin-top:6px;padding-top:8px}
+.lbl{color:var(--text-sub)}
+.v-in{color:var(--green);font-weight:600}.v-out{color:var(--red);font-weight:600}.v-bal{color:var(--blue);font-weight:600}
+
+.shiwake-box{background:#fff;border-radius:var(--radius);border:1px solid var(--border);padding:12px;margin-bottom:12px;box-shadow:var(--shadow)}
+.box-title{font-size:13px;font-weight:600;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.sw-head{display:grid;grid-template-columns:110px 1fr 1fr 22px;gap:5px;margin-bottom:4px}
+.sw-head span{font-size:10px;color:var(--text-sub)}
+.sw-row{display:grid;grid-template-columns:110px 1fr 1fr 22px;gap:5px;margin-bottom:5px;align-items:center}
+.sw-row input{font-size:12px;padding:4px 6px;border:1px solid var(--border);border-radius:var(--radius-sm);background:#fff}
+.sw-row input:focus{border-color:var(--orange);outline:none}
+.sw-row input[type=number]{text-align:right}
+.add-btn{font-size:12px;color:var(--text-sub);border:1px dashed var(--border);background:transparent;border-radius:var(--radius-sm);padding:5px 10px;width:100%;margin-top:4px}
+.add-btn:hover{background:var(--bg-secondary)}
+
+.receipt-section{background:#fff;border-radius:var(--radius);border:1px solid var(--border);overflow:hidden;margin-bottom:12px;box-shadow:var(--shadow)}
+.receipt-head{padding:8px 10px;font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:space-between;background:var(--bg-secondary);border-bottom:1px solid var(--border-light)}
+.receipt-head-left{display:flex;align-items:center;gap:6px}
+.receipt-btns{display:flex;gap:6px}
+.receipt-btns button{font-size:12px;padding:5px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:#fff;color:var(--text-sub)}
+.receipt-btns button:hover{background:var(--orange);color:#fff;border-color:var(--orange)}
+.receipt-list{padding:10px;display:grid;gap:8px}
+.receipt-card{background:var(--bg);border:1px solid var(--border-light);border-radius:var(--radius-sm);overflow:hidden}
+.receipt-img-wrap{position:relative;cursor:pointer}
+.receipt-img-wrap img{width:100%;max-height:140px;object-fit:cover;display:block}
+.receipt-img-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0);transition:background .15s}
+.receipt-img-wrap:hover .receipt-img-overlay{background:rgba(0,0,0,0.25)}
+.receipt-img-overlay i{color:#fff;font-size:24px;opacity:0;transition:opacity .15s}
+.receipt-img-wrap:hover .receipt-img-overlay i{opacity:1}
+.receipt-body{padding:8px 10px}
+.receipt-meta{font-size:11px;color:var(--text-sub);margin-bottom:5px;display:flex;justify-content:space-between;align-items:center}
+.analyzing{font-size:12px;color:var(--text-sub);display:flex;align-items:center;gap:5px;padding:4px 0}
+.ai-result{background:var(--orange-light);border-radius:var(--radius-sm);padding:8px 10px;margin-top:4px}
+.ai-result-head{font-size:11px;color:var(--text-sub);margin-bottom:5px;display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.ai-badge{font-size:10px;background:var(--orange);color:#fff;border-radius:20px;padding:1px 8px;display:inline-flex;align-items:center;gap:3px}
+.ai-item{display:flex;justify-content:space-between;font-size:12px;padding:2px 0;border-bottom:1px solid var(--border-light)}
+.ai-item:last-of-type{border-bottom:none}
+.ai-apply-area{margin-top:7px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.ai-apply-select{font-size:12px;padding:3px 6px;border:1px solid var(--border);border-radius:var(--radius-sm);background:#fff;color:var(--text)}
+.ai-apply-btn{font-size:12px;padding:5px 12px;background:var(--orange);color:#fff;border:none;border-radius:var(--radius-sm)}
+.ai-error{font-size:12px;color:var(--text-sub);padding:4px 0}
+.drive-uploading{font-size:11px;color:var(--text-sub);display:flex;align-items:center;gap:4px;margin-top:3px}
+
+.action-bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding-bottom:20px}
+.btn-save{font-size:13px;padding:8px 18px;background:var(--orange);color:#fff;border:none;border-radius:var(--radius-sm);font-weight:600;box-shadow:0 2px 6px rgba(245,168,78,0.4)}
+.btn-save:hover{background:var(--orange-dark)}
+.btn-print{font-size:13px;padding:8px 18px;background:#fff;border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text)}
+.btn-yayoi{font-size:13px;padding:8px 18px;background:var(--blue);color:#fff;border:none;border-radius:var(--radius-sm);font-weight:600}
+.saved-msg{font-size:12px;color:var(--green);font-weight:500}
+
+.suitocho-toolbar{display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.month-input{font-size:13px;padding:6px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:#fff;color:var(--text)}
+.balance-card{background:#fff;border-radius:var(--radius);border:1px solid var(--border);padding:12px 14px;margin-bottom:12px;display:grid;grid-template-columns:repeat(2,1fr);gap:10px;box-shadow:var(--shadow)}
+@media(min-width:400px){.balance-card{grid-template-columns:repeat(4,1fr)}}
+.bal-item{text-align:center}
+.bal-item .lbl3{font-size:10px;color:var(--text-sub);margin-bottom:3px}
+.bal-item .val{font-size:16px;font-weight:600}
+.manual-add-box{background:#fff;border-radius:var(--radius);border:1px solid var(--border);padding:12px;margin-bottom:12px;box-shadow:var(--shadow)}
+.manual-add-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px}
+@media(min-width:480px){.manual-add-grid{grid-template-columns:120px 1fr 110px 90px}}
+.manual-add-grid input,.manual-add-grid select{font-size:12px;padding:5px 7px;border:1px solid var(--border);border-radius:var(--radius-sm);background:#fff;width:100%}
+.manual-add-grid input:focus,.manual-add-grid select:focus{border-color:var(--orange);outline:none}
+.btn-manual-add{width:100%;font-size:13px;padding:7px;background:var(--orange);color:#fff;border:none;border-radius:var(--radius-sm)}
+.suitocho-table-wrap{overflow-x:auto;background:#fff;border-radius:var(--radius);border:1px solid var(--border);box-shadow:var(--shadow)}
+.suitocho-table{width:100%;border-collapse:collapse;font-size:12px;min-width:380px}
+.suitocho-table th{font-size:10px;color:var(--text-sub);font-weight:500;padding:6px 8px;border-bottom:1px solid var(--border-light);background:var(--bg-secondary);text-align:left}
+.suitocho-table th.right{text-align:right}
+.suitocho-table td{padding:6px 8px;border-bottom:1px solid var(--border-light);vertical-align:middle}
+.suitocho-table tr:last-child td{border-bottom:none}
+.suitocho-table tr:hover td{background:var(--bg-secondary)}
+.suitocho-table td.right{text-align:right}
+.td-plus{color:var(--green);font-weight:500}.td-minus{color:var(--red);font-weight:500}
+.td-bal-pos{color:var(--blue);font-weight:600}.td-bal-neg{color:var(--red);font-weight:600}
+.badge{display:inline-block;font-size:10px;padding:1px 7px;border-radius:20px;font-weight:500;margin-right:3px}
+.badge-uriage{background:#E6F7F0;color:#0B5E41}
+.badge-shihai{background:#FDEEE9;color:#8B2A10}
+.badge-bank-in{background:#E6F1FB;color:var(--blue)}
+.badge-bank-out{background:#FFF3E0;color:#854F0B}
+.no-data{text-align:center;padding:2rem;color:var(--text-sub);font-size:13px}
+
+.monthly-summary{background:#fff;border-radius:var(--radius);border:1px solid var(--border);padding:12px 14px;margin-bottom:12px;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;box-shadow:var(--shadow)}
+.mscard{text-align:center}.mscard .lbl2{font-size:10px;color:var(--text-sub);margin-bottom:3px}.mscard .val{font-size:16px;font-weight:600}
+.daily-table-wrap{overflow-x:auto;background:#fff;border-radius:var(--radius);border:1px solid var(--border);box-shadow:var(--shadow)}
+.daily-table{width:100%;border-collapse:collapse;font-size:12px}
+.daily-table th,.daily-table td{padding:6px 8px;border-bottom:1px solid var(--border-light);text-align:right}
+.daily-table th:first-child,.daily-table td:first-child{text-align:left}
+.daily-table th{font-size:10px;color:var(--text-sub);font-weight:400;background:var(--bg-secondary)}
+.daily-table tr:hover td{background:var(--bg-secondary)}
+
+.chart-type-bar{display:flex;gap:6px;margin-bottom:12px}
+.chart-type-bar button{font-size:12px;padding:5px 14px;border:1px solid var(--border);border-radius:20px;background:#fff;color:var(--text-sub)}
+.chart-type-bar button.active{background:var(--orange);color:#fff;border-color:var(--orange)}
+.chart-wrap{background:#fff;border-radius:var(--radius);border:1px solid var(--border);padding:14px;margin-bottom:12px;box-shadow:var(--shadow)}
+.chart-inner{position:relative;height:200px}
+.chart-legend{display:flex;gap:14px;justify-content:center;font-size:11px;color:var(--text-sub);margin-top:10px}
+.chart-legend span{display:flex;align-items:center;gap:4px}
+.legend-dot{display:inline-block;width:10px;height:10px;border-radius:2px}
+
+/* モーダル共通 */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9998;align-items:flex-end;justify-content:center}
+.modal-overlay.show{display:flex}
+@media(min-width:600px){.modal-overlay{align-items:center}}
+.modal-box{background:#fff;border-radius:16px 16px 0 0;padding:20px 16px;width:100%;max-width:560px;max-height:90vh;overflow-y:auto}
+@media(min-width:600px){.modal-box{border-radius:var(--radius)}}
+.modal-title{font-size:14px;font-weight:600;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center}
+.modal-close{background:none;border:none;font-size:22px;color:var(--text-sub);line-height:1}
+.print-preview{border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;margin-bottom:14px;background:#fff;font-size:11px;line-height:1.5}
+.print-preview h2{font-size:14px;font-weight:700;text-align:center;margin-bottom:4px;letter-spacing:4px}
+.pv-sub{text-align:right;font-size:10px;color:var(--text-sub);margin-bottom:8px}
+.pv-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
+.pv-table{width:100%;border-collapse:collapse;font-size:10px}
+.pv-table th{background:#f0f0f0;padding:3px 5px;border:0.5px solid #ccc;text-align:center;font-weight:500}
+.pv-table td{padding:2px 5px;border:0.5px solid #ccc}
+.pv-table td.right{text-align:right}
+.pv-totals{width:100%;border-collapse:collapse;font-size:10px;margin-bottom:6px}
+.pv-totals td{border:0.5px solid #ccc;padding:3px 6px}
+.pv-totals .bold{font-weight:700}.pv-totals .right{text-align:right}.pv-totals .center{text-align:center}
+.print-page-btn{width:100%;font-size:13px;padding:10px;background:var(--orange);color:#fff;border:none;border-radius:var(--radius-sm);font-weight:600}
+.note-box{font-size:11px;color:var(--text-sub);background:var(--bg-secondary);border-radius:var(--radius-sm);padding:8px 10px;margin-bottom:10px;line-height:1.6}
+.preview-table-wrap{overflow-x:auto;margin-bottom:12px}
+.preview-table{width:100%;border-collapse:collapse;font-size:10px;min-width:400px}
+.preview-table th{font-size:10px;color:var(--text-sub);font-weight:400;padding:4px 5px;border-bottom:0.5px solid var(--border);background:var(--bg-secondary);text-align:left}
+.preview-table td{padding:4px 5px;border-bottom:0.5px solid var(--border)}
+.download-btn{width:100%;font-size:13px;padding:10px;background:var(--blue);color:#fff;border:none;border-radius:var(--radius-sm);font-weight:600;margin-bottom:8px}
+
+.lightbox{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;align-items:center;justify-content:center}
+.lightbox.show{display:flex}
+.lightbox img{max-width:94%;max-height:94%;border-radius:var(--radius-sm)}
+.lightbox-close{position:absolute;top:14px;right:16px;font-size:30px;color:#fff;background:none;border:none;line-height:1}
+
+@media print{
+  .lock-screen,.tabs,.app-header,.action-bar,.receipt-section,.shiwake-box{display:none!important}
+  .print-preview{border:none!important;padding:0!important}
+}
+</style>
+</head>
+<body>
+
+<!-- パスコード画面 -->
+<div class="lock-screen" id="lockScreen">
+  <div class="lock-logo">🌞</div>
+  <div class="lock-title">整骨鍼灸院たいよう</div>
+  <div class="lock-sub">日計表システム</div>
+  <div class="lock-dots" id="lockDots">
+    <div class="lock-dot" id="dot0"></div>
+    <div class="lock-dot" id="dot1"></div>
+    <div class="lock-dot" id="dot2"></div>
+    <div class="lock-dot" id="dot3"></div>
+  </div>
+  <div class="lock-keypad">
+    <button class="key-btn" onclick="inputKey('1')">1</button>
+    <button class="key-btn" onclick="inputKey('2')">2</button>
+    <button class="key-btn" onclick="inputKey('3')">3</button>
+    <button class="key-btn" onclick="inputKey('4')">4</button>
+    <button class="key-btn" onclick="inputKey('5')">5</button>
+    <button class="key-btn" onclick="inputKey('6')">6</button>
+    <button class="key-btn" onclick="inputKey('7')">7</button>
+    <button class="key-btn" onclick="inputKey('8')">8</button>
+    <button class="key-btn" onclick="inputKey('9')">9</button>
+    <button class="key-btn" onclick="inputKey('')" style="visibility:hidden"></button>
+    <button class="key-btn" onclick="inputKey('0')">0</button>
+    <button class="key-btn key-del" onclick="deleteKey()"><i class="ti ti-backspace"></i></button>
+  </div>
+  <div class="lock-error" id="lockError"></div>
+  <div class="lock-sync" id="lockSync" style="display:none"><i class="ti ti-loader"></i> サーバーに接続中…</div>
+</div>
+
+<!-- メインアプリ -->
+<div class="app" id="mainApp">
+  <header class="app-header">
+    <h1><i class="ti ti-sun"></i> 日計表　たいよう</h1>
+    <div class="header-right">
+      <span class="today-date" id="headerDate"></span>
+      <span class="sync-indicator" id="syncIndicator" style="display:none"><i class="ti ti-cloud-upload"></i></span>
+      <button class="logout-btn" onclick="logout()"><i class="ti ti-lock"></i></button>
+    </div>
+  </header>
+
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('input')"><i class="ti ti-edit"></i> 入力</button>
+    <button class="tab" onclick="showTab('suitocho')"><i class="ti ti-list-numbers"></i> 出納帳</button>
+    <button class="tab" onclick="showTab('monthly')"><i class="ti ti-table"></i> 月次</button>
+    <button class="tab" onclick="showTab('graph')"><i class="ti ti-chart-bar"></i> グラフ</button>
+  </div>
+
+  <!-- 入力 -->
+  <div id="tab-input" class="panel active">
+    <div class="date-bar">
+      <button class="btn-sm btn-nav" onclick="changeDate(-1)"><i class="ti ti-chevron-left"></i></button>
+      <input type="date" id="datePicker" onchange="loadDate()">
+      <button class="btn-sm btn-nav" onclick="changeDate(1)"><i class="ti ti-chevron-right"></i></button>
+      <button class="btn-sm btn-today" onclick="goToday()">今日</button>
+    </div>
+    <div class="grid2">
+      <div class="col-box">
+        <div class="col-head in"><i class="ti ti-arrow-down-circle"></i>入金</div>
+        <div class="col-header-row"><span>摘要</span><span>金額</span><span>税区分</span><span></span></div>
+        <div id="inBlocks"></div>
+        <button class="add-kagaku-btn" onclick="addKagakuBlock('in')"><i class="ti ti-plus"></i> 科目を追加</button>
+      </div>
+      <div class="col-box">
+        <div class="col-head out"><i class="ti ti-arrow-up-circle"></i>出金</div>
+        <div class="col-header-row"><span>摘要</span><span>金額</span><span>税区分</span><span></span></div>
+        <div id="outBlocks"></div>
+        <button class="add-kagaku-btn" onclick="addKagakuBlock('out')"><i class="ti ti-plus"></i> 科目を追加</button>
+      </div>
+    </div>
+    <div class="summary-box">
+      <div class="prev-row"><span class="lbl">前日繰越</span><input type="number" id="prev_balance" min="0" step="1" placeholder="0" oninput="recalc()"></div>
+      <div class="sum-grid">
+        <div class="sum-row"><span class="lbl">本日入金計</span><span class="v-in" id="disp_in">¥0</span></div>
+        <div class="sum-row"><span class="lbl">本日出金計</span><span class="v-out" id="disp_out">¥0</span></div>
+      </div>
+      <div class="sum-row total"><span class="lbl">本日残高</span><span class="v-bal" id="disp_bal">¥0</span></div>
+      <div class="sum-row total"><span class="lbl">合計（前日繰越＋残高）</span><span class="v-bal" id="disp_total">¥0</span></div>
+    </div>
+    <div class="shiwake-box">
+      <div class="box-title"><i class="ti ti-list"></i> 仕訳</div>
+      <div class="sw-head"><span>金額</span><span>借方科目</span><span>貸方科目</span><span></span></div>
+      <div id="shiwake_rows"></div>
+      <button class="add-btn" onclick="addShiwake()"><i class="ti ti-plus"></i> 仕訳を追加</button>
+    </div>
+    <div class="receipt-section">
+      <div class="receipt-head">
+        <div class="receipt-head-left"><i class="ti ti-receipt"></i> レシート・領収書</div>
+        <div class="receipt-btns">
+          <button onclick="document.getElementById('fileInput').click()"><i class="ti ti-upload"></i> 選択</button>
+          <button onclick="document.getElementById('cameraInput').click()"><i class="ti ti-camera"></i> カメラ</button>
+        </div>
+      </div>
+      <input type="file" id="fileInput" accept="image/*" style="display:none" onchange="handleFiles(this.files)">
+      <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none" onchange="handleFiles(this.files)">
+      <div id="receiptList" class="receipt-list"></div>
+    </div>
+    <div class="action-bar">
+      <button class="btn-save" onclick="saveData()"><i class="ti ti-device-floppy"></i> 保存</button>
+      <button class="btn-print" onclick="openPrintModal()"><i class="ti ti-printer"></i> 印刷</button>
+      <button class="btn-yayoi" onclick="openYayoiModal()"><i class="ti ti-file-spreadsheet"></i> 弥生CSV</button>
+      <span class="saved-msg" id="savedMsg"></span>
+    </div>
+  </div>
+
+  <!-- 出納帳 -->
+  <div id="tab-suitocho" class="panel">
+    <div class="suitocho-toolbar">
+      <button class="btn-sm btn-nav" onclick="changeSuitochoMonth(-1)"><i class="ti ti-chevron-left"></i></button>
+      <input type="month" class="month-input" id="suitochoMonth" onchange="renderSuitocho()">
+      <button class="btn-sm btn-nav" onclick="changeSuitochoMonth(1)"><i class="ti ti-chevron-right"></i></button>
+    </div>
+    <div class="balance-card">
+      <div class="bal-item"><div class="lbl3">月初残高</div><div class="val" id="s_open">¥0</div></div>
+      <div class="bal-item"><div class="lbl3">月間入金</div><div class="val v-in" id="s_in">¥0</div></div>
+      <div class="bal-item"><div class="lbl3">月間出金</div><div class="val v-out" id="s_out">¥0</div></div>
+      <div class="bal-item"><div class="lbl3">月末残高</div><div class="val v-bal" id="s_close">¥0</div></div>
+    </div>
+    <div class="manual-add-box">
+      <div class="box-title"><i class="ti ti-plus-circle"></i> 手動追加（銀行との現金移動など）</div>
+      <div class="manual-add-grid">
+        <input type="date" id="m_date">
+        <input type="text" id="m_tekiyo" placeholder="備考（例：中銀から引出）">
+        <input type="number" id="m_amount" placeholder="金額" min="0" step="1">
+        <select id="m_type"><option value="in">＋入金</option><option value="out">－出金</option></select>
+      </div>
+      <button class="btn-manual-add" onclick="addManualEntry()"><i class="ti ti-plus"></i> 追加</button>
+    </div>
+    <div class="suitocho-table-wrap"><div id="suitochoWrap"></div></div>
+  </div>
+
+  <!-- 月次 -->
+  <div id="tab-monthly" class="panel">
+    <div class="suitocho-toolbar">
+      <button class="btn-sm btn-nav" onclick="changeMonth(-1)"><i class="ti ti-chevron-left"></i></button>
+      <input type="month" class="month-input" id="monthPicker" onchange="renderMonthly()">
+      <button class="btn-sm btn-nav" onclick="changeMonth(1)"><i class="ti ti-chevron-right"></i></button>
+    </div>
+    <div class="monthly-summary">
+      <div class="mscard"><div class="lbl2">月間入金計</div><div class="val v-in" id="mTotalIn">¥0</div></div>
+      <div class="mscard"><div class="lbl2">月間出金計</div><div class="val v-out" id="mTotalOut">¥0</div></div>
+      <div class="mscard"><div class="lbl2">月間残高計</div><div class="val v-bal" id="mTotalBal">¥0</div></div>
+    </div>
+    <div class="daily-table-wrap"><div id="monthlyTableWrap"></div></div>
+  </div>
+
+  <!-- グラフ -->
+  <div id="tab-graph" class="panel">
+    <div class="suitocho-toolbar">
+      <button class="btn-sm btn-nav" onclick="changeMonth(-1,true)"><i class="ti ti-chevron-left"></i></button>
+      <input type="month" class="month-input" id="monthPickerG" onchange="renderGraph()">
+      <button class="btn-sm btn-nav" onclick="changeMonth(1,true)"><i class="ti ti-chevron-right"></i></button>
+    </div>
+    <div class="chart-type-bar">
+      <button class="active" onclick="setChartType('bar',this)">棒グラフ</button>
+      <button onclick="setChartType('line',this)">折れ線</button>
+    </div>
+    <div class="chart-wrap">
+      <div class="chart-inner"><canvas id="myChart"></canvas></div>
+      <div class="chart-legend">
+        <span><span class="legend-dot" style="background:var(--green)"></span>入金</span>
+        <span><span class="legend-dot" style="background:var(--red)"></span>出金</span>
+        <span><span class="legend-dot" style="background:var(--blue)"></span>残高</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- lightbox -->
+<div class="lightbox" id="lightbox" onclick="this.classList.remove('show')">
+  <button class="lightbox-close" onclick="document.getElementById('lightbox').classList.remove('show')">&times;</button>
+  <img id="lightboxImg" src="" alt="">
+</div>
+
+<!-- 印刷モーダル -->
+<div class="modal-overlay" id="printModal" onclick="if(event.target===this)closePrintModal()">
+  <div class="modal-box">
+    <div class="modal-title"><span><i class="ti ti-printer"></i> 印刷プレビュー</span><button class="modal-close" onclick="closePrintModal()">&times;</button></div>
+    <div class="print-preview" id="printPreviewArea"></div>
+    <button class="print-page-btn" onclick="window.print()"><i class="ti ti-printer"></i> 印刷する</button>
+  </div>
+</div>
+
+<!-- 弥生CSV -->
+<div class="modal-overlay" id="yayoiModal" onclick="if(event.target===this)closeYayoiModal()">
+  <div class="modal-box">
+    <div class="modal-title"><span><i class="ti ti-file-spreadsheet"></i> 弥生会計CSV出力</span><button class="modal-close" onclick="closeYayoiModal()">&times;</button></div>
+    <div class="note-box">① 月を選択 → ② プレビュー確認 → ③ ダウンロード<br>弥生会計：ファイル → スマート取引取込 → CSVファイル取込</div>
+    <div class="suitocho-toolbar" style="margin-bottom:10px">
+      <button class="btn-sm btn-nav" onclick="changeYayoiMonth(-1)"><i class="ti ti-chevron-left"></i></button>
+      <input type="month" class="month-input" id="yayoiMonth" onchange="updateYayoiPreview()">
+      <button class="btn-sm btn-nav" onclick="changeYayoiMonth(1)"><i class="ti ti-chevron-right"></i></button>
+    </div>
+    <div class="preview-table-wrap" id="yayoiPreviewWrap"></div>
+    <button class="download-btn" onclick="downloadYayoiCSV()"><i class="ti ti-download"></i> CSVをダウンロード</button>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// 設定 ← ここだけ変更する
+// ============================================================
+const GAS_URL = 'YOUR_GAS_URL'; // Apps ScriptのデプロイURL
+
+// ============================================================
+// 定数・変数
+// ============================================================
+const TAX_IN=[{value:'非課税売上',label:'非課税'},{value:'課税売上込10%',label:'10%'},{value:'課税売上込8%',label:'8%'},{value:'対象外',label:'対象外'}];
+const TAX_OUT=[{value:'課対仕入込10%',label:'仕入10%'},{value:'課対仕入込8%',label:'仕入8%'},{value:'対象外',label:'対象外'},{value:'非課税仕入',label:'非課税'}];
+const YAYOI_DR_IN={'現金売上':'現金','クレジット売上':'売掛金','普通預金':'現金','小口袋':'現金','店主借':'現金','現金過不足':'現金','default':'現金'};
+const YAYOI_CR_IN={'現金売上':'売上高','クレジット売上':'売上高','普通預金':'普通預金','小口袋':'小口袋','店主借':'事業主借','現金過不足':'現金過不足','default':'売上高'};
+const YAYOI_DR_OUT={'現金仕入':'仕入高','普通預金':'普通預金','小口袋':'小口袋','店主借':'事業主貸','現金過不足':'現金過不足','default':'消耗品費'};
+
+let inData=[],outData=[],shiwakeList=[],receipts=[],chartInstance=null,currentChartType='bar';
+let authToken=null;
+let passcodeInput='';
+
+const fmt=v=>'¥'+Math.round(Math.abs(v)).toLocaleString('ja-JP');
+const fmtN=v=>Math.round(v).toLocaleString('ja-JP');
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const todayStr=()=>new Date().toISOString().slice(0,10);
+const monthStr=()=>new Date().toISOString().slice(0,7);
+
+// ============================================================
+// GAS通信
+// ============================================================
+async function gasPost(params) {
+  if (authToken) params.token = authToken;
+  const res = await fetch(GAS_URL, {
+    method: 'POST',
+    body: JSON.stringify(params)
+  });
+  return await res.json();
+}
+
+function showSync(show) {
+  const el = document.getElementById('syncIndicator');
+  if (show) { el.style.display='flex'; el.classList.add('syncing'); }
+  else { el.style.display='none'; el.classList.remove('syncing'); }
+}
+
+// ============================================================
+// パスコード認証
+// ============================================================
+function inputKey(key) {
+  if (!key || passcodeInput.length >= 4) return;
+  passcodeInput += key;
+  updateDots();
+  if (passcodeInput.length === 4) {
+    setTimeout(verifyPasscode, 150);
+  }
+}
+
+function deleteKey() {
+  passcodeInput = passcodeInput.slice(0, -1);
+  updateDots();
+  document.getElementById('lockError').textContent = '';
+}
+
+function updateDots() {
+  for (let i = 0; i < 4; i++) {
+    document.getElementById('dot' + i).classList.toggle('filled', i < passcodeInput.length);
+  }
+}
+
+async function verifyPasscode() {
+  document.getElementById('lockSync').style.display = 'flex';
+  try {
+    const result = await gasPost({ action: 'verify_passcode', passcode: passcodeInput });
+    if (result.success) {
+      authToken = result.token;
+      localStorage.setItem('taiyou_token', authToken);
+      localStorage.setItem('taiyou_token_time', new Date().getTime());
+      showApp();
+    } else {
+      document.getElementById('lockError').textContent = 'パスコードが違います';
+      passcodeInput = '';
+      updateDots();
+      // 振動フィードバック
+      if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+    }
+  } catch (e) {
+    document.getElementById('lockError').textContent = 'サーバーに接続できません';
+    passcodeInput = '';
+    updateDots();
+  }
+  document.getElementById('lockSync').style.display = 'none';
+}
+
+function logout() {
+  authToken = null;
+  localStorage.removeItem('taiyou_token');
+  localStorage.removeItem('taiyou_token_time');
+  passcodeInput = '';
+  updateDots();
+  document.getElementById('lockError').textContent = '';
+  document.getElementById('mainApp').classList.remove('show');
+  document.getElementById('lockScreen').style.display = 'flex';
+}
+
+function showApp() {
+  document.getElementById('lockScreen').style.display = 'none';
+  document.getElementById('mainApp').classList.add('show');
+  initApp();
+}
+
+// セッション復元（24時間以内なら再認証不要）
+function tryRestoreSession() {
+  const token = localStorage.getItem('taiyou_token');
+  const time = Number(localStorage.getItem('taiyou_token_time') || 0);
+  if (token && (new Date().getTime() - time < 23 * 60 * 60 * 1000)) {
+    authToken = token;
+    showApp();
+    return true;
+  }
+  return false;
+}
+
+// ============================================================
+// アプリ初期化
+// ============================================================
+function initApp() {
+  const d = new Date();
+  const wd = ['日','月','火','水','木','金','土'];
+  document.getElementById('headerDate').textContent = `${d.getMonth()+1}/${d.getDate()}（${wd[d.getDay()]}）`;
+  document.getElementById('datePicker').value = todayStr();
+  document.getElementById('suitochoMonth').value = monthStr();
+  document.getElementById('monthPicker').value = monthStr();
+  document.getElementById('monthPickerG').value = monthStr();
+  document.getElementById('m_date').value = todayStr();
+  document.getElementById('yayoiMonth').value = monthStr();
+  loadDate();
+}
+
+function showTab(name) {
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',['input','suitocho','monthly','graph'][i]===name));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  if(name==='suitocho')renderSuitocho();
+  if(name==='monthly')renderMonthly();
+  if(name==='graph')renderGraph();
+}
+
+// ============================================================
+// デフォルトデータ
+// ============================================================
+function defaultIn(){return[
+  {kagaku:'現金売上',fixedKagaku:true,rows:[{tekiyo:'保険',amount:0,fixed:true,tax:'非課税売上'},{tekiyo:'自費',amount:0,fixed:true,tax:'課税売上込10%'},{tekiyo:'販売',amount:0,fixed:true,tax:'課税売上込10%'}]},
+  {kagaku:'クレジット売上',fixedKagaku:true,rows:[{tekiyo:'',amount:0,fixed:true,tax:'対象外'}]},
+  {kagaku:'普通預金',fixedKagaku:true,rows:[{tekiyo:'',amount:0,fixed:true,tax:'対象外'}]},
+  {kagaku:'小口袋',fixedKagaku:true,rows:[{tekiyo:'',amount:0,fixed:true,tax:'対象外'}]},
+  {kagaku:'店主借',fixedKagaku:true,rows:[{tekiyo:'',amount:0,fixed:true,tax:'対象外'}]},
+  {kagaku:'現金過不足',fixedKagaku:true,rows:[{tekiyo:'',amount:0,fixed:true,tax:'対象外'}]},
+];}
+function defaultOut(){return[
+  {kagaku:'現金仕入',fixedKagaku:true,rows:[{tekiyo:'',amount:0,fixed:true,tax:'課対仕入込10%',placeholder:'どこで何を購入したか'}]},
+  {kagaku:'普通預金',fixedKagaku:true,rows:[{tekiyo:'',amount:0,fixed:true,tax:'対象外'}]},
+  {kagaku:'小口袋',fixedKagaku:true,rows:[{tekiyo:'',amount:0,fixed:true,tax:'対象外'}]},
+  {kagaku:'店主借',fixedKagaku:true,rows:[{tekiyo:'',amount:0,fixed:true,tax:'対象外'}]},
+  {kagaku:'現金過不足',fixedKagaku:true,rows:[{tekiyo:'',amount:0,fixed:true,tax:'対象外'}]},
+];}
+
+// ============================================================
+// 日計表 読込・保存
+// ============================================================
+async function loadDate() {
+  const dateStr = document.getElementById('datePicker').value;
+  inData = defaultIn(); outData = defaultOut(); shiwakeList = []; receipts = [];
+  document.getElementById('prev_balance').value = '';
+  document.getElementById('savedMsg').textContent = '';
+
+  showSync(true);
+  try {
+    const result = await gasPost({ action: 'load_day', date: dateStr });
+    if (result.success && result.data) {
+      const d = result.data;
+      // inMapからinDataを復元
+      if (Object.keys(d.inMap).length > 0) {
+        inData = defaultIn();
+        Object.entries(d.inMap).forEach(([kagaku, rows]) => {
+          const block = inData.find(b => b.kagaku === kagaku);
+          if (block) {
+            // 固定行をクリアして上書き
+            block.rows = rows.map((r, i) => ({
+              tekiyo: r.tekiyo, amount: r.amount, tax: r.tax,
+              fixed: i < defaultIn().find(b=>b.kagaku===kagaku)?.rows.length
+            }));
+          } else {
+            inData.push({ kagaku, fixedKagaku: false, rows: rows.map(r => ({ ...r, fixed: false })) });
+          }
+        });
+      }
+      if (Object.keys(d.outMap).length > 0) {
+        outData = defaultOut();
+        Object.entries(d.outMap).forEach(([kagaku, rows]) => {
+          const block = outData.find(b => b.kagaku === kagaku);
+          if (block) {
+            block.rows = rows.map((r, i) => ({
+              tekiyo: r.tekiyo, amount: r.amount, tax: r.tax,
+              fixed: i < defaultOut().find(b=>b.kagaku===kagaku)?.rows.length,
+              placeholder: block.rows[0]?.placeholder
+            }));
+          } else {
+            outData.push({ kagaku, fixedKagaku: false, rows: rows.map(r => ({ ...r, fixed: false })) });
+          }
+        });
+      }
+      shiwakeList = d.shiwake || [];
+      document.getElementById('prev_balance').value = d.prev_balance || '';
+
+      // レシート読込
+      const rResult = await gasPost({ action: 'load_receipts', date: dateStr });
+      if (rResult.success) receipts = rResult.data || [];
+    }
+  } catch(e) {
+    console.warn('GAS通信エラー:', e);
+  }
+  showSync(false);
+  renderBlocks('in'); renderBlocks('out'); renderShiwake(); renderReceipts(); recalc();
+}
+
+async function saveData() {
+  const dateStr = document.getElementById('datePicker').value;
+  document.getElementById('savedMsg').textContent = '';
+  showSync(true);
+  try {
+    const result = await gasPost({
+      action: 'save_day',
+      date: dateStr,
+      inData, outData,
+      shiwake: shiwakeList,
+      prev_balance: Number(document.getElementById('prev_balance').value) || 0
+    });
+    if (result.success) {
+      const msg = document.getElementById('savedMsg');
+      msg.textContent = '✓ 保存しました';
+      setTimeout(() => msg.textContent = '', 3000);
+    }
+  } catch(e) {
+    document.getElementById('savedMsg').textContent = '通信エラー';
+  }
+  showSync(false);
+}
+
+// ============================================================
+// 入出金ブロック描画
+// ============================================================
+function renderBlocks(side) {
+  const data = side === 'in' ? inData : outData;
+  const taxOpts = side === 'in' ? TAX_IN : TAX_OUT;
+  const container = document.getElementById(side + 'Blocks');
+  container.innerHTML = '';
+  data.forEach((block, bi) => {
+    const wrap = document.createElement('div'); wrap.className = 'kagaku-block';
+    const headRow = document.createElement('div'); headRow.className = 'kagaku-label-row';
+    const labelEl = document.createElement('span'); labelEl.className = 'kagaku-label';
+    if (block.fixedKagaku) { labelEl.textContent = block.kagaku; }
+    else {
+      const inp = document.createElement('input'); inp.type = 'text'; inp.value = block.kagaku; inp.placeholder = '科目名';
+      inp.style.cssText = 'font-size:12px;font-weight:600;padding:2px 5px;border:1px solid var(--border);border-radius:4px;background:#fff;color:var(--text);width:100px';
+      inp.oninput = () => { data[bi].kagaku = inp.value; };
+      labelEl.appendChild(inp);
+    }
+    const addBtn = document.createElement('button'); addBtn.className = 'kagaku-add-btn'; addBtn.innerHTML = '+'; addBtn.title = '摘要を追加';
+    addBtn.onclick = () => {
+      data[bi].rows.push({ tekiyo: '', amount: 0, fixed: false, tax: side === 'out' ? '課対仕入込10%' : '対象外' });
+      renderBlocks(side); recalc();
+      setTimeout(() => { const rows = wrap.querySelectorAll('.tekiyo-row input[type=text]'); if (rows.length) rows[rows.length - 1].focus(); }, 30);
+    };
+    headRow.appendChild(labelEl); headRow.appendChild(addBtn); wrap.appendChild(headRow);
+    block.rows.forEach((row, ri) => {
+      const tr = document.createElement('div'); tr.className = 'tekiyo-row';
+      const tI = document.createElement('input'); tI.type = 'text'; tI.value = row.tekiyo || ''; tI.placeholder = row.placeholder || (block.rows.length > 1 ? '摘要' : '');
+      tI.oninput = () => { data[bi].rows[ri].tekiyo = tI.value; };
+      const aI = document.createElement('input'); aI.type = 'number'; aI.value = row.amount || ''; aI.placeholder = '0'; aI.min = '0'; aI.step = '1';
+      aI.oninput = () => { data[bi].rows[ri].amount = Number(aI.value) || 0; recalc(); };
+      const sel = document.createElement('select'); sel.className = 'tax-select';
+      taxOpts.forEach(opt => { const o = document.createElement('option'); o.value = opt.value; o.textContent = opt.label; if (opt.value === (row.tax || '')) o.selected = true; sel.appendChild(o); });
+      sel.onchange = () => { data[bi].rows[ri].tax = sel.value; };
+      const dB = document.createElement('button'); dB.className = 'del-btn' + (row.fixed ? ' hidden' : ''); dB.innerHTML = '<i class="ti ti-x"></i>';
+      dB.onclick = () => { data[bi].rows.splice(ri, 1); renderBlocks(side); recalc(); };
+      tr.appendChild(tI); tr.appendChild(aI); tr.appendChild(sel); tr.appendChild(dB); wrap.appendChild(tr);
+    });
+    if (!block.fixedKagaku) {
+      const dB = document.createElement('button');
+      dB.style.cssText = 'width:100%;font-size:11px;color:var(--text-sub);border:none;border-top:1px solid var(--border-light);background:transparent;padding:4px;cursor:pointer;text-align:center';
+      dB.innerHTML = '<i class="ti ti-trash"></i> この科目を削除';
+      dB.onclick = () => { data.splice(bi, 1); renderBlocks(side); recalc(); };
+      wrap.appendChild(dB);
+    }
+    container.appendChild(wrap);
+  });
+}
+
+function addKagakuBlock(side) {
+  const data = side === 'in' ? inData : outData;
+  data.push({ kagaku: '', fixedKagaku: false, rows: [{ tekiyo: '', amount: 0, fixed: false, tax: side === 'out' ? '課対仕入込10%' : '対象外' }] });
+  renderBlocks(side); recalc();
+  setTimeout(() => { const c = document.getElementById(side + 'Blocks'); const inps = c.querySelectorAll('.kagaku-label input[type=text]'); if (inps.length) inps[inps.length - 1].focus(); }, 30);
+}
+
+function recalc() {
+  const inT = inData.reduce((s, b) => s + b.rows.reduce((a, r) => a + (Number(r.amount) || 0), 0), 0);
+  const outT = outData.reduce((s, b) => s + b.rows.reduce((a, r) => a + (Number(r.amount) || 0), 0), 0);
+  const prev = Number(document.getElementById('prev_balance').value) || 0;
+  const bal = inT - outT;
+  document.getElementById('disp_in').textContent = fmt(inT);
+  document.getElementById('disp_out').textContent = fmt(outT);
+  document.getElementById('disp_bal').textContent = fmt(bal);
+  document.getElementById('disp_total').textContent = fmt(prev + bal);
+}
+
+// ============================================================
+// 仕訳
+// ============================================================
+function addShiwake() { shiwakeList.push({ amount: 0, debit: '', credit: '' }); renderShiwake(); }
+function delShiwake(i) { shiwakeList.splice(i, 1); renderShiwake(); }
+function renderShiwake() {
+  const c = document.getElementById('shiwake_rows'); c.innerHTML = '';
+  shiwakeList.forEach((r, i) => {
+    const d = document.createElement('div'); d.className = 'sw-row';
+    d.innerHTML = `<input type="number" placeholder="金額" value="${r.amount||''}" min="0" step="1" oninput="shiwakeList[${i}].amount=Number(this.value)||0"><input type="text" placeholder="借方科目" value="${esc(r.debit)}" oninput="shiwakeList[${i}].debit=this.value"><input type="text" placeholder="貸方科目" value="${esc(r.credit)}" oninput="shiwakeList[${i}].credit=this.value"><button class="del-btn" onclick="delShiwake(${i})"><i class="ti ti-x"></i></button>`;
+    c.appendChild(d);
+  });
+}
+
+// ============================================================
+// レシート（Googleドライブ保存）
+// ============================================================
+function handleFiles(files) {
+  Array.from(files).forEach(file => {
+    if (!file.type.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      const id = 'r' + Date.now() + Math.random().toString(36).slice(2, 5);
+      const ts = new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+      const receipt = { id, base64: e.target.result, name: file.name, ts, aiResult: null, analyzing: true, uploading: true, viewUrl: null };
+      receipts.push(receipt);
+      renderReceipts();
+      // AI読み取りとドライブアップロードを並行
+      Promise.all([
+        analyzeReceipt(id, e.target.result, file.type),
+        uploadReceiptToDrive(id, e.target.result, file.type, file.name)
+      ]);
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+async function uploadReceiptToDrive(id, base64, mimeType, filename) {
+  try {
+    const dateStr = document.getElementById('datePicker').value;
+    const result = await gasPost({
+      action: 'upload_receipt',
+      id, base64, mimeType, filename, date: dateStr
+    });
+    const r = receipts.find(x => x.id === id);
+    if (r && result.success) {
+      r.uploading = false;
+      r.fileId = result.fileId;
+      r.viewUrl = result.viewUrl;
+    } else if (r) {
+      r.uploading = false;
+    }
+  } catch (e) {
+    const r = receipts.find(x => x.id === id);
+    if (r) r.uploading = false;
+  }
+  renderReceipts();
+}
+
+async function analyzeReceipt(id, base64, mimeType) {
+  const b64 = base64.split(',')[1];
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 1000, messages: [{ role: 'user', content: [{ type: 'image', source: { type: 'base64', media_type: mimeType || 'image/jpeg', data: b64 } }, { type: 'text', text: 'このレシートまたは領収書を読み取り、以下のJSON形式のみで返答してください（説明不要）:\n{"store":"店名","total":合計金額(数値),"items":[{"name":"品目","amount":金額(数値)}]}\nレシートでない場合は{"error":"レシートではありません"}を返してください。' }] }] })
+    });
+    const data = await res.json();
+    const text = data.content?.map(c => c.text || '').join('') || '';
+    const parsed = JSON.parse(text.replace(/```json|```/g, '').trim());
+    const r = receipts.find(x => x.id === id);
+    if (r) { r.aiResult = parsed; r.analyzing = false; }
+  } catch (e) {
+    const r = receipts.find(x => x.id === id);
+    if (r) { r.aiResult = { error: '読み取りに失敗しました' }; r.analyzing = false; }
+  }
+  renderReceipts();
+}
+
+function applyReceipt(id) {
+  const r = receipts.find(x => x.id === id); if (!r || !r.aiResult || r.aiResult.error) return;
+  const sel = document.getElementById('apply_sel_' + id); const targetIdx = sel ? Number(sel.value) : 0;
+  const ai = r.aiResult; const store = ai.store || ''; const block = outData[targetIdx] || outData[0];
+  if (ai.items && ai.items.length > 0) { ai.items.forEach(item => { block.rows.push({ tekiyo: store ? (store + '／' + item.name) : item.name, amount: Number(item.amount) || 0, fixed: false, tax: '課対仕入込10%' }); }); }
+  else { block.rows.push({ tekiyo: store || 'レシート取込', amount: Number(ai.total) || 0, fixed: false, tax: '課対仕入込10%' }); }
+  renderBlocks('out'); recalc(); r.applied = true; renderReceipts();
+}
+
+async function deleteReceipt(id) {
+  const r = receipts.find(x => x.id === id);
+  if (r && r.fileId) {
+    await gasPost({ action: 'delete_receipt', id, fileId: r.fileId });
+  }
+  const i = receipts.findIndex(x => x.id === id);
+  if (i >= 0) receipts.splice(i, 1);
+  renderReceipts();
+}
+
+function renderReceipts() {
+  const wrap = document.getElementById('receiptList');
+  if (!receipts.length) { wrap.innerHTML = ''; return; }
+  wrap.innerHTML = '';
+  receipts.forEach(r => {
+    const card = document.createElement('div'); card.className = 'receipt-card';
+    const ai = r.aiResult; const fmtP = v => v ? Number(v).toLocaleString('ja-JP') : '';
+    const imgSrc = r.viewUrl || r.base64;
+    let aiHtml = '';
+    if (r.analyzing) { aiHtml = `<div class="analyzing"><i class="ti ti-loader"></i> AI読み取り中…</div>`; }
+    else if (ai && !ai.error) {
+      const itemsHtml = (ai.items || []).map(it => `<div class="ai-item"><span>${esc(it.name||'')}</span><span>¥${fmtP(it.amount)}</span></div>`).join('');
+      const outOptions = outData.map((b, i) => `<option value="${i}">${esc(b.kagaku)}</option>`).join('');
+      aiHtml = `<div class="ai-result"><div class="ai-result-head"><span class="ai-badge"><i class="ti ti-sparkles"></i> AI読み取り</span> ${esc(ai.store||'')}　¥${fmtP(ai.total)}${r.applied?'　<span style="font-size:11px;color:var(--green)">✓ 取込済</span>':''}</div>${itemsHtml}<div class="ai-apply-area"><span style="font-size:12px;color:var(--text-sub)">取込先：</span><select class="ai-apply-select" id="apply_sel_${r.id}">${outOptions}</select><button class="ai-apply-btn" onclick="applyReceipt('${r.id}')"><i class="ti ti-file-import"></i> 出金に取込</button></div></div>`;
+    } else if (ai && ai.error) { aiHtml = `<div class="ai-error"><i class="ti ti-alert-circle"></i> ${esc(ai.error)}</div>`; }
+    const driveStatus = r.uploading ? `<div class="drive-uploading"><i class="ti ti-cloud-upload"></i> ドライブに保存中…</div>` : (r.viewUrl ? `<div class="drive-uploading" style="color:var(--green)"><i class="ti ti-cloud-check"></i> ドライブに保存済</div>` : '');
+    card.innerHTML = `<div class="receipt-img-wrap" onclick="openLightbox('${r.id}')"><img src="${imgSrc}" alt="レシート"><div class="receipt-img-overlay"><i class="ti ti-zoom-in"></i></div></div><div class="receipt-body"><div class="receipt-meta"><span><i class="ti ti-clock"></i> ${r.ts}</span><button class="del-btn" onclick="deleteReceipt('${r.id}')"><i class="ti ti-trash"></i></button></div>${driveStatus}${aiHtml}</div>`;
+    wrap.appendChild(card);
+  });
+}
+
+function openLightbox(id) {
+  const r = receipts.find(x => x.id === id); if (!r) return;
+  document.getElementById('lightboxImg').src = r.viewUrl || r.base64;
+  document.getElementById('lightbox').classList.add('show');
+}
+
+// ============================================================
+// 出納帳
+// ============================================================
+async function addManualEntry() {
+  const date = document.getElementById('m_date').value;
+  const tekiyo = document.getElementById('m_tekiyo').value;
+  const amount = Number(document.getElementById('m_amount').value) || 0;
+  const type = document.getElementById('m_type').value;
+  if (!date || !amount) return;
+  const id = 'm' + Date.now();
+  showSync(true);
+  try {
+    await gasPost({ action: 'save_manual', entry: { id, date, tekiyo, amount, type } });
+    document.getElementById('m_tekiyo').value = '';
+    document.getElementById('m_amount').value = '';
+    renderSuitocho();
+  } catch(e) {}
+  showSync(false);
+}
+
+async function deleteManualEntry(id) {
+  showSync(true);
+  try { await gasPost({ action: 'delete_manual', id }); } catch(e) {}
+  showSync(false);
+  renderSuitocho();
+}
+
+async function renderSuitocho() {
+  const ym = document.getElementById('suitochoMonth').value;
+  showSync(true);
+  
+  try {
+    // 月次データ読込
+    const monthResult = await gasPost({ action: 'load_month', ym });
+    const dayMap = (monthResult.success ? monthResult.data : {}) || {};
+
+    // 手動エントリ読込
+    const manualResult = await gasPost({ action: 'load_manual', ym });
+    const manualEntries = (manualResult.success ? manualResult.data : []) || [];
+
+    // エントリ組み立て
+    const entries = [];
+    Object.entries(dayMap).forEach(([dateStr, day]) => {
+      if (day.in > 0) entries.push({ date: dateStr, tekiyo: '売上入金', amount: day.in, type: 'in', badge: 'badge-uriage' });
+      if (day.out > 0) entries.push({ date: dateStr, tekiyo: '支出', amount: day.out, type: 'out', badge: 'badge-shihai' });
+    });
+    manualEntries.forEach(e => entries.push({ ...e, badge: e.type === 'in' ? 'badge-bank-in' : 'badge-bank-out' }));
+    entries.sort((a, b) => a.date.localeCompare(b.date));
+
+    // 月初残高計算（全月のデータから）
+    let opening = 0;
+    const [y, m] = ym.split('-').map(Number);
+    for (let yr = 2020; yr <= y; yr++) {
+      for (let mo = 1; mo <= 12; mo++) {
+        if (yr === y && mo >= m) break;
+        const prevYm = `${yr}-${String(mo).padStart(2,'0')}`;
+        const pResult = await gasPost({ action: 'load_month', ym: prevYm });
+        const pMap = (pResult.success ? pResult.data : {}) || {};
+        Object.values(pMap).forEach(d => { opening += d.in - d.out; });
+        const pmResult = await gasPost({ action: 'load_manual', ym: prevYm });
+        const pmEntries = (pmResult.success ? pmResult.data : []) || [];
+        pmEntries.forEach(e => { opening += e.type === 'in' ? e.amount : -e.amount; });
+      }
+    }
+
+    let mIn = 0, mOut = 0;
+    entries.forEach(e => { if (e.type === 'in') mIn += e.amount; else mOut += e.amount; });
+    document.getElementById('s_open').textContent = fmt(opening);
+    document.getElementById('s_in').textContent = fmt(mIn);
+    document.getElementById('s_out').textContent = fmt(mOut);
+    document.getElementById('s_close').textContent = fmt(opening + mIn - mOut);
+
+    if (!entries.length) { document.getElementById('suitochoWrap').innerHTML = '<div class="no-data">この月のデータはまだありません</div>'; showSync(false); return; }
+
+    let html = '<table class="suitocho-table"><thead><tr><th>日付</th><th>項目</th><th class="right">入金</th><th class="right">出金</th><th class="right">残高</th><th></th></tr></thead><tbody>';
+    html += `<tr><td style="font-size:10px;color:var(--text-sub)">${ym}/01前</td><td style="font-size:10px;color:var(--text-sub)">月初残高</td><td></td><td></td><td class="td-bal-pos right">${fmtN(opening)}</td><td></td></tr>`;
+    let running = opening;
+    entries.forEach(e => {
+      running += e.type === 'in' ? e.amount : -e.amount;
+      const delBtn = e.manual ? `<button class="del-btn" onclick="deleteManualEntry('${e.id}')"><i class="ti ti-x"></i></button>` : '';
+      html += `<tr><td style="white-space:nowrap;font-size:11px">${e.date.slice(5).replace('-','/')}</td><td><span class="badge ${e.badge}">${e.type==='in'?'入金':'出金'}</span>${esc(e.tekiyo||'')}${e.manual?' <span style="font-size:10px;color:var(--text-sub)">手動</span>':''}</td><td class="right ${e.type==='in'?'td-plus':''}">${e.type==='in'?fmtN(e.amount):''}</td><td class="right ${e.type==='out'?'td-minus':''}">${e.type==='out'?fmtN(e.amount):''}</td><td class="right ${running>=0?'td-bal-pos':'td-bal-neg'}">${fmtN(running)}</td><td>${delBtn}</td></tr>`;
+    });
+    document.getElementById('suitochoWrap').innerHTML = html + '</tbody></table>';
+  } catch(e) {
+    document.getElementById('suitochoWrap').innerHTML = '<div class="no-data">データの読み込みに失敗しました</div>';
+  }
+  showSync(false);
+}
+
+function changeSuitochoMonth(d) { const mp = document.getElementById('suitochoMonth'); const [y, m] = mp.value.split('-').map(Number); const nd = new Date(y, m - 1 + d, 1); mp.value = nd.toISOString().slice(0, 7); renderSuitocho(); }
+
+// ============================================================
+// 月次・グラフ
+// ============================================================
+async function renderMonthly() {
+  const ym = document.getElementById('monthPicker').value;
+  showSync(true);
+  try {
+    const result = await gasPost({ action: 'load_month', ym });
+    const dayMap = (result.success ? result.data : {}) || {};
+    const [y, m] = ym.split('-').map(Number);
+    const days = new Date(y, m, 0).getDate();
+    let tIn = 0, tOut = 0;
+    let html = '<table class="daily-table"><thead><tr><th>日付</th><th>入金計</th><th>出金計</th><th>残高</th></tr></thead><tbody>';
+    let hasData = false;
+    for (let d = 1; d <= days; d++) {
+      const dateStr = `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      const day = dayMap[dateStr];
+      if (!day || (!day.in && !day.out)) continue;
+      hasData = true;
+      tIn += day.in; tOut += day.out;
+      const bal = day.in - day.out;
+      html += `<tr><td>${ym}/${String(d).padStart(2,'0')}</td><td style="color:var(--green)">${fmtN(day.in)}</td><td style="color:var(--red)">${fmtN(day.out)}</td><td style="${bal>=0?'color:var(--blue)':'color:var(--red)'}">${fmtN(bal)}</td></tr>`;
+    }
+    const tBal = tIn - tOut;
+    html += `<tr style="font-weight:600;border-top:1px solid var(--border)"><td>合計</td><td style="color:var(--green)">${fmtN(tIn)}</td><td style="color:var(--red)">${fmtN(tOut)}</td><td style="${tBal>=0?'color:var(--blue)':'color:var(--red)'}">${fmtN(tBal)}</td></tr>`;
+    document.getElementById('mTotalIn').textContent = fmt(tIn);
+    document.getElementById('mTotalOut').textContent = fmt(tOut);
+    document.getElementById('mTotalBal').textContent = fmt(tBal);
+    document.getElementById('monthlyTableWrap').innerHTML = hasData ? html + '</tbody></table>' : '<div class="no-data">この月のデータはまだありません</div>';
+  } catch(e) {}
+  showSync(false);
+}
+
+async function renderGraph() {
+  const ym = document.getElementById('monthPickerG').value;
+  showSync(true);
+  try {
+    const result = await gasPost({ action: 'load_month', ym });
+    const dayMap = (result.success ? result.data : {}) || {};
+    const [y, m] = ym.split('-').map(Number);
+    const days = new Date(y, m, 0).getDate();
+    const labels = [], inArr = [], outArr = [], balArr = [];
+    for (let d = 1; d <= days; d++) {
+      const dateStr = `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      const day = dayMap[dateStr];
+      if (!day || (!day.in && !day.out)) continue;
+      labels.push(d + '日');
+      inArr.push(day.in); outArr.push(day.out); balArr.push(day.in - day.out);
+    }
+    const ctx = document.getElementById('myChart').getContext('2d');
+    if (chartInstance) chartInstance.destroy();
+    const ds = (label, data, color) => ({ label, data, backgroundColor: color + '33', borderColor: color, borderWidth: 2, borderRadius: currentChartType === 'bar' ? 3 : 0, tension: 0.35, fill: false, pointRadius: 3 });
+    chartInstance = new Chart(ctx, { type: currentChartType, data: { labels, datasets: [ds('入金', inArr, '#1D9E75'), ds('出金', outArr, '#D85A30'), ds('残高', balArr, '#185FA5')] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 11 } } }, y: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 11 }, callback: v => v.toLocaleString('ja-JP') } } } } });
+  } catch(e) {}
+  showSync(false);
+}
+
+function changeMonth(d, isG) { const id = isG ? 'monthPickerG' : 'monthPicker'; const mp = document.getElementById(id); const [y, m] = mp.value.split('-').map(Number); const nd = new Date(y, m - 1 + d, 1); mp.value = nd.toISOString().slice(0, 7); if (isG) renderGraph(); else renderMonthly(); }
+function setChartType(type, btn) { currentChartType = type; document.querySelectorAll('.chart-type-bar button').forEach(b => b.classList.remove('active')); btn.classList.add('active'); renderGraph(); }
+
+// ============================================================
+// 印刷
+// ============================================================
+function openPrintModal() {
+  const dateStr = document.getElementById('datePicker').value;
+  const [y, m, day] = dateStr.split('-');
+  const wareki = `令和${Number(y)-2018}年${Number(m)}月${Number(day)}日`;
+  const inT = inData.reduce((s, b) => s + b.rows.reduce((a, r) => a + (Number(r.amount) || 0), 0), 0);
+  const outT = outData.reduce((s, b) => s + b.rows.reduce((a, r) => a + (Number(r.amount) || 0), 0), 0);
+  const prev = Number(document.getElementById('prev_balance').value) || 0;
+  const bal = inT - outT; const total = prev + bal;
+  const fmtP = v => v ? Number(v).toLocaleString('ja-JP') : '';
+  const buildRows = data => data.map(block => block.rows.map((r, ri) => `<tr>${ri === 0 ? `<td rowspan="${block.rows.length}" style="border:0.5px solid #ccc;padding:2px 5px;vertical-align:middle">${esc(block.kagaku)}</td>` : ''}<td style="border:0.5px solid #ccc;padding:2px 5px">${esc(r.tekiyo||'')}</td><td class="right" style="border:0.5px solid #ccc;padding:2px 5px">${fmtP(r.amount)}</td></tr>`).join('')).join('');
+  const swHtml = shiwakeList.length ? shiwakeList.map(r => `<tr><td class="right" style="border:0.5px solid #ccc;padding:2px 5px">${fmtP(r.amount)}</td><td style="border:0.5px solid #ccc;padding:2px 5px">${esc(r.debit)}</td><td style="border:0.5px solid #ccc;padding:2px 5px">${esc(r.credit)}</td></tr>`).join('') : '<tr><td style="height:20px;border:0.5px solid #ccc"></td><td style="border:0.5px solid #ccc"></td><td style="border:0.5px solid #ccc"></td></tr>';
+  document.getElementById('printPreviewArea').innerHTML = `<h2>日　計　表</h2><div class="pv-sub">${wareki}　店名：整骨鍼灸院たいよう</div><div class="pv-grid"><table class="pv-table"><thead><tr><th>科目</th><th>摘要</th><th>金額</th></tr></thead><tbody>${buildRows(inData)}</tbody></table><table class="pv-table"><thead><tr><th>科目</th><th>摘要</th><th>金額</th></tr></thead><tbody>${buildRows(outData)}</tbody></table></div><table class="pv-totals"><tr><td class="center bold" style="width:25%">本日入金計</td><td class="right bold" style="width:25%">${inT.toLocaleString()}</td><td class="center bold" style="width:25%">本日出金計</td><td class="right bold" style="width:25%">${outT.toLocaleString()}</td></tr><tr><td class="center">前日繰越</td><td class="right">${prev.toLocaleString()}</td><td class="center bold">本日残高</td><td class="right bold">${bal.toLocaleString()}</td></tr><tr><td class="center bold">合計</td><td class="right bold">${total.toLocaleString()}</td><td class="center bold">合計</td><td class="right bold">${total.toLocaleString()}</td></tr></table><table class="pv-table" style="margin-top:6px"><thead><tr><th>金額</th><th>借方科目</th><th>貸方科目</th></tr></thead><tbody>${swHtml}</tbody></table>`;
+  document.getElementById('printModal').classList.add('show');
+}
+function closePrintModal() { document.getElementById('printModal').classList.remove('show'); }
+
+// ============================================================
+// 弥生CSV
+// ============================================================
+async function buildYayoiRows(ym) {
+  const result = await gasPost({ action: 'load_month', ym });
+  // 詳細な仕訳データが必要なため日ごとに取得
+  const [y, m] = ym.split('-').map(Number);
+  const days = new Date(y, m, 0).getDate();
+  const rows = []; let seq = 1;
+  for (let d = 1; d <= days; d++) {
+    const dateStr = `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const yayoiDate = `R.${y-2018}/${String(m).padStart(2,'0')}/${String(d).padStart(2,'0')}`;
+    const dayResult = await gasPost({ action: 'load_day', date: dateStr });
+    if (!dayResult.success || !dayResult.data) continue;
+    const { inMap, outMap } = dayResult.data;
+    Object.entries(inMap || {}).forEach(([kagaku, rowList]) => {
+      rowList.forEach(row => {
+        const amt = Number(row.amount) || 0; if (!amt) return;
+        const dr = YAYOI_DR_IN[kagaku] || YAYOI_DR_IN.default;
+        const cr = YAYOI_CR_IN[kagaku] || YAYOI_CR_IN.default;
+        const tax = row.tax || '対象外';
+        const tekiyo = row.tekiyo ? `${kagaku}/${row.tekiyo}` : kagaku;
+        rows.push({ seq, yayoiDate, dr, drSub: '', drTax: '対象外', amt, cr, crSub: row.tekiyo ? `施術　${row.tekiyo}` : '', crTax: tax, tekiyo }); seq++;
+      });
+    });
+    Object.entries(outMap || {}).forEach(([kagaku, rowList]) => {
+      rowList.forEach(row => {
+        const amt = Number(row.amount) || 0; if (!amt) return;
+        const dr = YAYOI_DR_OUT[kagaku] || YAYOI_DR_OUT.default;
+        const tax = row.tax || '対象外';
+        const tekiyo = row.tekiyo ? `${kagaku}/${row.tekiyo}` : kagaku;
+        rows.push({ seq, yayoiDate, dr, drSub: row.tekiyo || '', drTax: tax, amt, cr: '現金', crSub: '', crTax: '対象外', tekiyo }); seq++;
+      });
+    });
+  }
+  return rows;
+}
+
+function openYayoiModal() { document.getElementById('yayoiMonth').value = monthStr(); document.getElementById('yayoiModal').classList.add('show'); updateYayoiPreview(); }
+function closeYayoiModal() { document.getElementById('yayoiModal').classList.remove('show'); }
+function changeYayoiMonth(d) { const mp = document.getElementById('yayoiMonth'); const [y, m] = mp.value.split('-').map(Number); const nd = new Date(y, m - 1 + d, 1); mp.value = nd.toISOString().slice(0, 7); updateYayoiPreview(); }
+
+async function updateYayoiPreview() {
+  const wrap = document.getElementById('yayoiPreviewWrap');
+  wrap.innerHTML = '<div class="no-data"><i class="ti ti-loader"></i> 読み込み中…</div>';
+  const rows = await buildYayoiRows(document.getElementById('yayoiMonth').value);
+  if (!rows.length) { wrap.innerHTML = '<div class="no-data">この月のデータはまだありません</div>'; return; }
+  let html = '<table class="preview-table"><thead><tr><th>日付</th><th>借方科目</th><th>借方税区分</th><th>金額</th><th>貸方科目</th><th>貸方税区分</th><th>摘要</th></tr></thead><tbody>';
+  rows.slice(0, 8).forEach(r => { html += `<tr><td>${r.yayoiDate}</td><td>${esc(r.dr)}</td><td>${esc(r.drTax)}</td><td style="text-align:right">${r.amt.toLocaleString()}</td><td>${esc(r.cr)}</td><td>${esc(r.crTax)}</td><td>${esc(r.tekiyo)}</td></tr>`; });
+  if (rows.length > 8) html += `<tr><td colspan="7" style="text-align:center;color:var(--text-sub)">… 他${rows.length-8}件</td></tr>`;
+  wrap.innerHTML = html + '</tbody></table>';
+}
+
+async function downloadYayoiCSV() {
+  const ym = document.getElementById('yayoiMonth').value;
+  const rows = await buildYayoiRows(ym);
+  if (!rows.length) { alert('この月のデータはありません'); return; }
+  const csvRows = rows.map(r => ['"2000"', r.seq, '""', `"${r.yayoiDate}"`, `"${r.dr}"`, `"${r.drSub}"`, '""', `"${r.drTax}"`, r.amt, 0, `"${r.cr}"`, `"${r.crSub}"`, '""', `"${r.crTax}"`, r.amt, 0, `"${r.tekiyo}"`, '""', '""', 0, '""', '""', '"0"', '"0"', '"no"'].join(','));
+  const blob = new Blob(['\uFEFF' + csvRows.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `弥生仕訳_${ym.replace('-', '')}.csv`; a.click();
+}
+
+// ============================================================
+// 起動
+// ============================================================
+window.addEventListener('load', () => {
+  if (!tryRestoreSession()) {
+    document.getElementById('lockScreen').style.display = 'flex';
+  }
+});
+</script>
+</body>
+</html>
