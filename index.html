@@ -318,10 +318,12 @@ input,select,textarea{font-family:inherit}
         <div class="receipt-btns">
           <button onclick="document.getElementById('fileInput').click()"><i class="ti ti-upload"></i> 選択</button>
           <button onclick="document.getElementById('cameraInput').click()"><i class="ti ti-camera"></i> カメラ</button>
+          <button onclick="document.getElementById('scannerInput').click()"><i class="ti ti-scan"></i> スキャナ</button>
         </div>
       </div>
-      <input type="file" id="fileInput" accept="image/*" style="display:none" onchange="handleFiles(this.files)">
+      <input type="file" id="fileInput" accept="image/*,application/pdf" style="display:none" onchange="handleFiles(this.files)">
       <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none" onchange="handleFiles(this.files)">
+      <input type="file" id="scannerInput" accept="image/*,application/pdf" style="display:none" onchange="handleFiles(this.files)">
       <div id="receiptList" class="receipt-list"></div>
     </div>
     <div class="action-bar">
@@ -429,7 +431,7 @@ input,select,textarea{font-family:inherit}
 // ============================================================
 // 設定 ← ここだけ変更する
 // ============================================================
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbx4Urw4BJJt-H7xkc00iK4QyFeWnZyMJjln9iFIxntxWYTq7ZpGdIC409hnRPZqoVAY/exec'; // Apps ScriptのデプロイURL
+const GAS_URL = 'YOUR_GAS_URL'; // Apps ScriptのデプロイURL
 
 // ============================================================
 // 定数・変数
@@ -485,6 +487,16 @@ function deleteKey() {
   updateDots();
   document.getElementById('lockError').textContent = '';
 }
+
+// キーボード入力対応
+document.addEventListener('keydown', function(e) {
+  if (document.getElementById('lockScreen').style.display === 'none') return;
+  if (e.key >= '0' && e.key <= '9') {
+    inputKey(e.key);
+  } else if (e.key === 'Backspace') {
+    deleteKey();
+  }
+});
 
 function updateDots() {
   for (let i = 0; i < 4; i++) {
@@ -743,6 +755,23 @@ function recalc() {
 // 仕訳
 // ============================================================
 function addShiwake() { shiwakeList.push({ amount: 0, debit: '', credit: '' }); renderShiwake(); }
+
+function changeDate(d) {
+  const dp = document.getElementById('datePicker');
+  const parts = dp.value.split('-');
+  const dt = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+  dt.setDate(dt.getDate() + d);
+  const y = dt.getFullYear();
+  const m = String(dt.getMonth() + 1).padStart(2, '0');
+  const day = String(dt.getDate()).padStart(2, '0');
+  dp.value = y + '-' + m + '-' + day;
+  loadDate();
+}
+
+function goToday() {
+  document.getElementById('datePicker').value = todayStr();
+  loadDate();
+}
 function delShiwake(i) { shiwakeList.splice(i, 1); renderShiwake(); }
 function renderShiwake() {
   const c = document.getElementById('shiwake_rows'); c.innerHTML = '';
@@ -758,19 +787,34 @@ function renderShiwake() {
 // ============================================================
 function handleFiles(files) {
   Array.from(files).forEach(file => {
-    if (!file.type.startsWith('image/')) return;
+    const isImage = file.type.startsWith('image/');
+    const isPdf = file.type === 'application/pdf';
+    if (!isImage && !isPdf) return;
+
     const reader = new FileReader();
     reader.onload = e => {
       const id = 'r' + Date.now() + Math.random().toString(36).slice(2, 5);
       const ts = new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
-      const receipt = { id, base64: e.target.result, name: file.name, ts, aiResult: null, analyzing: true, uploading: true, viewUrl: null };
-      receipts.push(receipt);
-      renderReceipts();
-      // AI読み取りとドライブアップロードを並行
-      Promise.all([
-        analyzeReceipt(id, e.target.result, file.type),
-        uploadReceiptToDrive(id, e.target.result, file.type, file.name)
-      ]);
+
+      if (isPdf) {
+        // PDFはサムネなしで登録、AI読み取りはbase64で送る
+        const receipt = { id, base64: e.target.result, name: file.name, ts, aiResult: null, analyzing: true, uploading: true, viewUrl: null, isPdf: true };
+        receipts.push(receipt);
+        renderReceipts();
+        Promise.all([
+          analyzeReceipt(id, e.target.result, 'application/pdf'),
+          uploadReceiptToDrive(id, e.target.result, file.type, file.name)
+        ]);
+      } else {
+        // 画像
+        const receipt = { id, base64: e.target.result, name: file.name, ts, aiResult: null, analyzing: true, uploading: true, viewUrl: null };
+        receipts.push(receipt);
+        renderReceipts();
+        Promise.all([
+          analyzeReceipt(id, e.target.result, file.type),
+          uploadReceiptToDrive(id, e.target.result, file.type, file.name)
+        ]);
+      }
     };
     reader.readAsDataURL(file);
   });
@@ -799,17 +843,19 @@ async function uploadReceiptToDrive(id, base64, mimeType, filename) {
 }
 
 async function analyzeReceipt(id, base64, mimeType) {
-  const b64 = base64.split(',')[1];
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 1000, messages: [{ role: 'user', content: [{ type: 'image', source: { type: 'base64', media_type: mimeType || 'image/jpeg', data: b64 } }, { type: 'text', text: 'このレシートまたは領収書を読み取り、以下のJSON形式のみで返答してください（説明不要）:\n{"store":"店名","total":合計金額(数値),"items":[{"name":"品目","amount":金額(数値)}]}\nレシートでない場合は{"error":"レシートではありません"}を返してください。' }] }] })
+    // GAS経由でAI読み取り（CORS回避・スマホ・タブレット・スキャナ全対応）
+    const result = await gasPost({
+      action: 'analyze_receipt',
+      id,
+      base64,
+      mimeType: mimeType || 'image/jpeg'
     });
-    const data = await res.json();
-    const text = data.content?.map(c => c.text || '').join('') || '';
-    const parsed = JSON.parse(text.replace(/```json|```/g, '').trim());
     const r = receipts.find(x => x.id === id);
-    if (r) { r.aiResult = parsed; r.analyzing = false; }
+    if (r) {
+      r.aiResult = result.aiResult || { error: '読み取りに失敗しました' };
+      r.analyzing = false;
+    }
   } catch (e) {
     const r = receipts.find(x => x.id === id);
     if (r) { r.aiResult = { error: '読み取りに失敗しました' }; r.analyzing = false; }
@@ -843,7 +889,7 @@ function renderReceipts() {
   receipts.forEach(r => {
     const card = document.createElement('div'); card.className = 'receipt-card';
     const ai = r.aiResult; const fmtP = v => v ? Number(v).toLocaleString('ja-JP') : '';
-    const imgSrc = r.viewUrl || r.base64;
+    const imgSrc = r.viewUrl || (r.isPdf ? null : r.base64);
     let aiHtml = '';
     if (r.analyzing) { aiHtml = `<div class="analyzing"><i class="ti ti-loader"></i> AI読み取り中…</div>`; }
     else if (ai && !ai.error) {
@@ -852,7 +898,7 @@ function renderReceipts() {
       aiHtml = `<div class="ai-result"><div class="ai-result-head"><span class="ai-badge"><i class="ti ti-sparkles"></i> AI読み取り</span> ${esc(ai.store||'')}　¥${fmtP(ai.total)}${r.applied?'　<span style="font-size:11px;color:var(--green)">✓ 取込済</span>':''}</div>${itemsHtml}<div class="ai-apply-area"><span style="font-size:12px;color:var(--text-sub)">取込先：</span><select class="ai-apply-select" id="apply_sel_${r.id}">${outOptions}</select><button class="ai-apply-btn" onclick="applyReceipt('${r.id}')"><i class="ti ti-file-import"></i> 出金に取込</button></div></div>`;
     } else if (ai && ai.error) { aiHtml = `<div class="ai-error"><i class="ti ti-alert-circle"></i> ${esc(ai.error)}</div>`; }
     const driveStatus = r.uploading ? `<div class="drive-uploading"><i class="ti ti-cloud-upload"></i> ドライブに保存中…</div>` : (r.viewUrl ? `<div class="drive-uploading" style="color:var(--green)"><i class="ti ti-cloud-check"></i> ドライブに保存済</div>` : '');
-    card.innerHTML = `<div class="receipt-img-wrap" onclick="openLightbox('${r.id}')"><img src="${imgSrc}" alt="レシート"><div class="receipt-img-overlay"><i class="ti ti-zoom-in"></i></div></div><div class="receipt-body"><div class="receipt-meta"><span><i class="ti ti-clock"></i> ${r.ts}</span><button class="del-btn" onclick="deleteReceipt('${r.id}')"><i class="ti ti-trash"></i></button></div>${driveStatus}${aiHtml}</div>`;
+    card.innerHTML = `${imgSrc ? `<div class="receipt-img-wrap" onclick="openLightbox('${r.id}')"><img src="${imgSrc}" alt="レシート"><div class="receipt-img-overlay"><i class="ti ti-zoom-in"></i></div></div>` : `<div style="background:var(--bg-secondary);padding:14px 10px;text-align:center;font-size:12px;color:var(--text-sub)"><i class="ti ti-file-type-pdf" style="font-size:28px;display:block;margin-bottom:4px"></i>${esc(r.name||'PDFファイル')}</div>`}<div class="receipt-body"><div class="receipt-meta"><span><i class="ti ti-clock"></i> ${r.ts}</span><button class="del-btn" onclick="deleteReceipt('${r.id}')"><i class="ti ti-trash"></i></button></div>${driveStatus}${aiHtml}</div>`;
     wrap.appendChild(card);
   });
 }
