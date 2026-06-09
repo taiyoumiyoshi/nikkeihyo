@@ -3,5 +3,5 @@
 // GAS URLが変わったときはここだけ変更してください
 // ============================================================
 const CONFIG = {
-  GAS_URL: 'https://script.google.com/macros/s/AKfycbyFHOEFS2y4szt89IPVbL-ewIIEkVrWGbi4UDiVQ9ij0BBo2rL6BaHPlMQN_9D1vub8/exec'
+  GAS_URL: 'https://script.google.com/macros/s/AKfycbyg_ZiOUbEAfcyOrMQNZEPhgUcPYBqU9pME4_sZc5xpCiYw4Qjf3OsEOjCZpYLt_TtI/exec'
 };
