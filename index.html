@@ -671,17 +671,22 @@ async function saveData() {
     const result = await gasPost({
       action: 'save_day',
       date: dateStr,
-      inData, outData,
+      inData: inData,
+      outData: outData,
       shiwake: shiwakeList,
       prev_balance: Number(document.getElementById('prev_balance').value) || 0
     });
-    if (result.success) {
+    console.log('saveData result:', JSON.stringify(result));
+    if (result && result.success) {
       const msg = document.getElementById('savedMsg');
       msg.textContent = '✓ 保存しました';
       setTimeout(() => msg.textContent = '', 3000);
+    } else {
+      document.getElementById('savedMsg').textContent = '保存失敗: ' + (result ? result.error : '不明');
     }
   } catch(e) {
-    document.getElementById('savedMsg').textContent = '通信エラー';
+    console.log('saveData error:', e.toString());
+    document.getElementById('savedMsg').textContent = '通信エラー: ' + e.toString();
   }
   showSync(false);
 }
