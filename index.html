@@ -458,9 +458,11 @@ const monthStr=()=>new Date().toISOString().slice(0,7);
 // ============================================================
 async function gasPost(params) {
   if (authToken) params.token = authToken;
-  const payload = encodeURIComponent(JSON.stringify(params));
   const action = params.action || '';
-  const url = GAS_URL + '?action=' + action + '&payload=' + payload;
+  // tokenをpayloadとURLパラメータ両方に入れる
+  const payload = encodeURIComponent(JSON.stringify(params));
+  const token = authToken ? '&token=' + authToken : '';
+  const url = GAS_URL + '?action=' + action + token + '&payload=' + payload;
   const res = await fetch(url, { method: 'GET' });
   return await res.json();
 }
