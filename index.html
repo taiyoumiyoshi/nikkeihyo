@@ -457,12 +457,11 @@ const monthStr=()=>new Date().toISOString().slice(0,7);
 // GAS通信
 // ============================================================
 async function gasPost(params) {
-  if (authToken) params.token = authToken;
   const action = params.action || '';
-  // tokenをpayloadとURLパラメータ両方に入れる
+  const token = authToken || '';
+  // tokenはURLパラメータとpayload両方に入れる
   const payload = encodeURIComponent(JSON.stringify(params));
-  const token = authToken ? '&token=' + authToken : '';
-  const url = GAS_URL + '?action=' + action + token + '&payload=' + payload;
+  const url = GAS_URL + '?action=' + action + '&token=' + token + '&payload=' + payload;
   const res = await fetch(url, { method: 'GET' });
   return await res.json();
 }
